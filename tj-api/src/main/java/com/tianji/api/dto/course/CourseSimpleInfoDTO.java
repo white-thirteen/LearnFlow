@@ -8,10 +8,9 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 /**
- * @ClassName CourseSimpleInfoDTO
- * @Author wusongsong
- * @Date 2022/7/27 14:32
- * @Version
+ * @author wusongsong
+ * @since 2022/7/27 14:32
+ * @version 1.0.0
  **/
 @Data
 public class CourseSimpleInfoDTO {
@@ -23,6 +22,10 @@ public class CourseSimpleInfoDTO {
     private String coverUrl;
     @ApiModelProperty("价格")
     private Integer price;
+    @ApiModelProperty("课程状态")
+    private Integer status;
+    @ApiModelProperty("是否是免费课程")
+    private Boolean free;
     @ApiModelProperty("一级分类id")
     private Long firstCateId;
     @ApiModelProperty("二级分类id")
