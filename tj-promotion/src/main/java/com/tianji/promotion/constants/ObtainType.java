@@ -1,5 +1,6 @@
 package com.tianji.promotion.constants;
 
+import com.fasterxml.jackson.annotation.JsonValue;
 import com.tianji.common.enums.BaseEnum;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -11,6 +12,7 @@ public enum ObtainType implements BaseEnum {
     ISSUE(2, "发放兑换码"),
     ;
     private final int value;
+    @JsonValue
     private final String desc;
 
     public static ObtainType of(Integer value) {

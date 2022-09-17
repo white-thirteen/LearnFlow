@@ -24,7 +24,7 @@ spring:
 tj:
   swagger:
     enable: true
-    package-path: com.tianji.promition.controller
+    package-path: com.tianji.promotion.controller
     title: 智汇云课堂 - 促销中心接口文档
     description: 该服务提供各种促销活动管理、优惠券管理等功能
     contact-name: 传智教育·研究院
@@ -36,3 +36,7 @@ tj:
   auth:
     resource:
       enable: true
+  promotion:
+    aes:
+      key: tjxt-test-key-in
+      iv: tjxt-test-ivinit
