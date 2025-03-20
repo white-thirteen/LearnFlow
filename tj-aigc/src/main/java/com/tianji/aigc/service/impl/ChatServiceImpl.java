@@ -6,8 +6,7 @@ import cn.hutool.core.map.MapUtil;
 import cn.hutool.core.util.IdUtil;
 import cn.hutool.core.util.ReflectUtil;
 import cn.hutool.core.util.StrUtil;
-import cn.hutool.json.JSONUtil;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tianji.aigc.agent.ConsultAgent;
 import com.tianji.aigc.config.SystemPromptConfig;
 import com.tianji.aigc.config.ToolResultHolder;
 import com.tianji.aigc.constants.Constant;
@@ -24,17 +23,14 @@ import org.springframework.ai.chat.client.advisor.QuestionAnswerAdvisor;
 import org.springframework.ai.chat.metadata.ChatResponseMetadata;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
-import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 
-import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 
 @Slf4j
-@Service
+// @Service
 @RequiredArgsConstructor
 public class ChatServiceImpl implements ChatService {
 
@@ -43,9 +39,12 @@ public class ChatServiceImpl implements ChatService {
     private final SystemPromptConfig systemPromptConfig;
     private final VectorStore vectorStore;
     private final ChatSessionService chatSessionService;
-    private final ObjectMapper objectMapper;
+    private final ConsultAgent consultAgent;
 
     private static final Map<String, Boolean> GENERATE_STATUS = new HashMap<>();
+
+    // 输出结束，清除标记
+    private static final ChatEventVO STOP_EVENT = ChatEventVO.builder().eventType(ChatEventTypeEnum.STOP.getValue()).build();
 
     @Override
     public Flux<ChatEventVO> chat(String question, String sessionId) {
@@ -60,17 +59,18 @@ public class ChatServiceImpl implements ChatService {
 
         return this.dashScopeChatClient.prompt()
                 .system(promptSystem -> promptSystem
-                        .text(this.systemPromptConfig.getSystemChatMessage()) // 设置系统提示语
+                        .text(this.systemPromptConfig.getChatSystemMessage().get()) // 设置系统提示语
                         .param("now", DateUtil.now()) // 设置当前时间的参数
                 )
                 .advisors(advisor -> advisor
                         .advisors(new QuestionAnswerAdvisor(vectorStore, SearchRequest.builder().query("").topK(999).build()))
                         .param(AbstractChatMemoryAdvisor.CHAT_MEMORY_CONVERSATION_ID_KEY, conversationId)
                 )
-                .toolContext(MapUtil.<String, Object>builder()
-                        .put(Constant.USER_ID, userId)
-                        .put(Constant.REQUEST_ID, requestId)
-                        .build()) // 设置用户id参数
+                .toolContext(MapUtil.<String, Object>builder() // 设置tool列表
+                        .put(Constant.USER_ID, userId) // 设置用户id参数
+                        .put(Constant.REQUEST_ID, requestId) // 设置请求id参数
+                        .build()
+                )
                 .user(question)
                 .stream()
                 .chatResponse()
@@ -81,6 +81,7 @@ public class ChatServiceImpl implements ChatService {
                     //输出结束，清除标记
                     GENERATE_STATUS.remove(sessionId);
                 })
+                .doOnError(throwable -> GENERATE_STATUS.remove(sessionId)) // 错误时清除标记
                 .takeWhile(s -> Optional.ofNullable(GENERATE_STATUS.get(sessionId)).orElse(false))
                 // .concatWith(Flux.just("&complete&"));
                 .map(chatResponse -> {
@@ -99,11 +100,6 @@ public class ChatServiceImpl implements ChatService {
                             .build();
                 })
                 .concatWith(Flux.defer(() -> {
-                    // 输出结束，清除标记
-                    ChatEventVO stopEvent = ChatEventVO.builder()
-                            .eventType(ChatEventTypeEnum.STOP.getValue())
-                            .build();
-
                     // 通过请求id获取到参数列表，如果不为空，就将其追加到返回结果中
                     var map = ToolResultHolder.get(requestId);
                     if (CollUtil.isNotEmpty(map)) {
@@ -114,10 +110,9 @@ public class ChatServiceImpl implements ChatService {
                                 .eventData(map)
                                 .eventType(ChatEventTypeEnum.PARAM.getValue())
                                 .build();
-
-                        return Flux.just(chatEventVO, stopEvent);
+                        return Flux.just(chatEventVO, STOP_EVENT);
                     }
-                    return Flux.just(stopEvent);
+                    return Flux.just(STOP_EVENT);
                 }));
     }
 
@@ -129,61 +124,10 @@ public class ChatServiceImpl implements ChatService {
     @Override
     public String chatText(String question) {
         return this.openAiChatClient.prompt()
-                .system(promptSystem -> promptSystem.text(this.systemPromptConfig.getTextSystemChatMessage()))
+                .system(promptSystem -> promptSystem.text(this.systemPromptConfig.getTextSystemMessage().get()))
                 .user(question)
                 .call()
                 .content();
-    }
-
-    public Flux<ChatEventVO> chatMock2(String question, String sessionId) {
-        String data = """
-                {"eventData":"根据","eventType":1001}
-                {"eventData":"课程","eventType":1001}
-                {"eventData":"介绍","eventType":1001}
-                {"eventData":"，我为您准备","eventType":1001}
-                {"eventData":"了一个简单的Java入门","eventType":1001}
-                {"eventData":"示例。由于","eventType":1001}
-                {"eventData":"这是个基础示","eventType":1001}
-                {"eventData":"例，所以代码","eventType":1001}
-                {"eventData":"可能不是最优解","eventType":1001}
-                {"eventData":"，但应该能满足","eventType":1001}
-                {"eventData":"您的需求。这里","eventType":1001}
-                {"eventData":"是一个简单的Hello World","eventType":1001}
-                {"eventData":"程序，它是所有","eventType":1001}
-                {"eventData":"程序员的入门经典","eventType":1001}
-                {"eventData":"：\\n\\n```java","eventType":1001}
-                {"eventData":"\\npublic class HelloWorld {","eventType":1001}
-                {"eventData":"\\n    public static void","eventType":1001}
-                {"eventData":" main(String[] args","eventType":1001}
-                {"eventData":") {\\n        System","eventType":1001}
-                {"eventData":".out.println(\\"Hello","eventType":1001}
-                {"eventData":", World!\\");","eventType":1001}
-                {"eventData":"\\n    }\\n}\\n```","eventType":1001}
-                {"eventData":"\\n\\n运行此程序，","eventType":1001}
-                {"eventData":"您将在控制台","eventType":1001}
-                {"eventData":"看到输出：\\"Hello","eventType":1001}
-                {"eventData":", World!\\"。","eventType":1001}
-                {"eventData":"这就是经典的Java入门","eventType":1001}
-                {"eventData":"程序，它演示","eventType":1001}
-                {"eventData":"了Java语言的一些","eventType":1001}
-                {"eventData":"基本特性，如","eventType":1001}
-                {"eventData":"声明变量、使用","eventType":1001}
-                {"eventData":"系统输出打印字符串","eventType":1001}
-                {"eventData":"等。如果您需要","eventType":1001}
-                {"eventData":"更多的示例或者","eventType":1001}
-                {"eventData":"具体的实现细节，","eventType":1001}
-                {"eventData":"我可以为您提供更详","eventType":1001}
-                {"eventData":"尽的指导。","eventType":1001}
-                {"eventData":{"courseInfo_1589905661084430337":{"id":"1589905661084430337","name":"可能是史上最全的微服务技术栈课程","price":199.0,"validDuration":9999,"usePeople":"有一定的Java开发基础，熟练使用了SpringBoot、MyBatis等基础框架","detail":"可能是史上最全的微服务技术栈课程，由黑马名师授课，你值的拥有"}},"eventType":1003}
-                {"eventType":1002}
-                """;
-
-        return Flux.fromIterable(StrUtil.split(data, "\n").stream()
-                        .filter(StrUtil::isNotBlank)
-                        .map(s -> JSONUtil.toBean(s, ChatEventVO.class))
-                        .filter(Objects::nonNull)
-                        .toList())
-                .delayElements(Duration.ofMillis(300));
     }
 
 }
