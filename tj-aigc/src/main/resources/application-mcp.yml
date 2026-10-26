@@ -1,0 +1,24 @@
+# 与现有环境叠加，例如 --spring.profiles.active=local,mcp。
+# Spring AI 1.0.0 使用 SSE；此处不接受仅支持 Streamable HTTP 的 /mcp 地址。
+spring:
+  ai:
+    mcp:
+      client:
+        enabled: ${MCP_CLIENT_ENABLED:true}
+        sse:
+          connections:
+            tianji-course:
+              # 这里只配置服务根地址，SSE 路径单独配置。
+              url: ${TJ_MCP_SERVER_URL:http://localhost:8095}
+              sse-endpoint: ${TJ_MCP_SSE_ENDPOINT:/sse}
+
+tj:
+  ai:
+    mcp:
+      # Spring AI 1.0.0 回调名由客户端名称、连接名称、服务端工具名组合生成。
+      # 未配置的 ROUTE / BUY / KNOWLEDGE 不获得这个远程工具。
+      agent-tools:
+        CONSULT:
+          - tianji_aigc_mcp_client_tianji_course_search_courses
+        RECOMMEND:
+          - tianji_aigc_mcp_client_tianji_course_search_courses

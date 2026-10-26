@@ -24,6 +24,8 @@
         <module>tj-promotion</module>
         <module>tj-data</module>
         <module>tj-remark</module>
+        <module>tj-aigc</module>
+        <module>tj-mcp-server</module>
     </modules>
     <packaging>pom</packaging>
 
@@ -40,7 +42,8 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <tjxt.version>1.0</tjxt.version>
-        <org.projectlombok.version>1.18.36</org.projectlombok.version>
+        <!-- Lombok 1.18.40+ 才支持 JDK 23/25，本机 Maven 跑在 JDK 25 上，旧版本注解处理器会直接崩溃 -->
+        <org.projectlombok.version>1.18.46</org.projectlombok.version>
         <spring-cloud.version>2023.0.3</spring-cloud.version>
         <spring-cloud-alibaba.version>2023.0.3.2</spring-cloud-alibaba.version>
         <spring-ai.version>1.0.0</spring-ai.version>
@@ -202,6 +205,8 @@
                     <configuration>
                         <source>17</source> <!-- depending on your project -->
                         <target>17</target> <!-- depending on your project -->
+                        <!-- JDK 23+ 不再隐式运行 classpath 上的注解处理器，必须显式开启，否则 Lombok 不生效（大量 cannot find symbol） -->
+                        <proc>full</proc>
                     </configuration>
                 </plugin>
             </plugins>

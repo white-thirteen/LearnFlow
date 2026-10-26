@@ -4,13 +4,15 @@ import com.tianji.auth.common.constants.JwtConstants;
 import com.tianji.common.utils.TokenContext;
 import com.tianji.common.utils.UserContext;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.web.servlet.HandlerInterceptor;
+import org.springframework.web.servlet.AsyncHandlerInterceptor;
 
 @Slf4j
-public class UserInfoInterceptor implements HandlerInterceptor {
+public class UserInfoInterceptor implements AsyncHandlerInterceptor {
 
     @Override
     public boolean preHandle(jakarta.servlet.http.HttpServletRequest request, jakarta.servlet.http.HttpServletResponse response, Object handler) throws Exception {
+        UserContext.removeUser();
+        TokenContext.removeToken();
         // 1.尝试获取头信息中的用户信息
         String authorization = request.getHeader(JwtConstants.USER_HEADER);
         // 2.判断是否为空
@@ -30,9 +32,17 @@ public class UserInfoInterceptor implements HandlerInterceptor {
     }
 
     @Override
+    public void afterConcurrentHandlingStarted(jakarta.servlet.http.HttpServletRequest request, jakarta.servlet.http.HttpServletResponse response, Object handler) {
+        // SSE 启动后原请求线程会立即归还线程池，不能等长连接结束才清理。
+        UserContext.removeUser();
+        TokenContext.removeToken();
+    }
+
+    @Override
     public void afterCompletion(jakarta.servlet.http.HttpServletRequest request, jakarta.servlet.http.HttpServletResponse response, Object handler, Exception ex) throws Exception {
         // 清理用户信息
         UserContext.removeUser();
+        TokenContext.removeToken();
     }
 
 }

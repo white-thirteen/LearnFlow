@@ -1,0 +1,35 @@
+server:
+  port: ${MCP_SERVER_PORT:8095}
+
+spring:
+  application:
+    name: mcp-service
+  mvc:
+    async:
+      request-timeout: -1
+  ai:
+    mcp:
+      server:
+        enabled: true
+        name: tianji-course-mcp
+        version: 1.0.0
+        type: SYNC
+        stdio: false
+        instructions: 天机学堂课程查询服务，按关键词搜索当前已上架课程并返回公开摘要，价格单位为分。
+        sse-endpoint: /sse
+        sse-message-endpoint: /mcp/message
+        capabilities:
+          tool: true
+          resource: false
+          prompt: false
+          completion: false
+  cloud:
+    nacos:
+      server-addr: ${NACOS_SERVER_ADDR:127.0.0.1:8848}
+      username: ${NACOS_USERNAME:}
+      password: ${NACOS_PASSWORD:}
+      discovery:
+        # 先支持独立启动；接入业务服务时使用与业务服务一致的注册中心配置。
+        enabled: ${MCP_DISCOVERY_ENABLED:false}
+        namespace: ${NACOS_NAMESPACE:}
+        group: ${NACOS_GROUP:DEFAULT_GROUP}
